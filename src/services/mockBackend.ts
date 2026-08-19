@@ -443,6 +443,8 @@ export const mockBackend: Backend = {
           result: entry.result,
           delta: entry.delta,
           scoreAfter: entry.scoreAfter,
+          rank: entry.rankAfter,
+          totalParticipants: entry.totalParticipants,
         } satisfies LastResult;
 
         const answer = db.answers[roomId]?.[answerKey(roundIndex, entry.uid)];

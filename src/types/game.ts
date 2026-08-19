@@ -100,6 +100,14 @@ export interface LastResult {
   result: AnswerResult;
   delta: number;
   scoreAfter: number;
+  /**
+   * 채점 후 순위. 교사가 계산해서 함께 기록한다.
+   * 학생이 순위를 알려고 전체 참가자를 구독하지 않아도 되게 하기 위한 값이다.
+   * (30명이 서로의 문서를 모두 구독하면 채점 순간 통신량이 급증해
+   *  화면 전환이 밀리는 문제가 있었다.)
+   */
+  rank?: number;
+  totalParticipants?: number;
 }
 
 /** 학생이 제출한 답안 */

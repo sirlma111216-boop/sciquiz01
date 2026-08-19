@@ -40,9 +40,12 @@ export function WaitingPanel({ nickname, score }: { nickname: string; score: num
 export function SubmittedPanel({
   choice,
   confidencePoints,
+  scoring = false,
 }: {
   choice: boolean;
   confidencePoints: number;
+  /** 시간이 끝나 채점 중인 상태 (곧 정답이 공개된다) */
+  scoring?: boolean;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
@@ -69,9 +72,11 @@ export function SubmittedPanel({
 
       <p className="text-sm font-medium text-slate-400">
         <span className="mr-2 inline-block h-2 w-2 animate-soft-pulse rounded-full bg-beam-400" aria-hidden="true" />
-        다른 친구들의 선택을 기다리는 중...
+        {scoring ? '결과를 계산하는 중...' : '다른 친구들의 선택을 기다리는 중...'}
       </p>
-      <p className="text-xs text-slate-500">이제 답을 바꿀 수 없어요.</p>
+      <p className="text-xs text-slate-500">
+        {scoring ? '교사 화면에서 정답을 확인하세요.' : '이제 답을 바꿀 수 없어요.'}
+      </p>
     </div>
   );
 }

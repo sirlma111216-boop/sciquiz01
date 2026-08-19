@@ -102,6 +102,11 @@ function mapParticipant(uid: string, data: Record<string, unknown>): Participant
           result: rawLast.result as LastResult['result'],
           delta: Number(rawLast.delta ?? 0),
           scoreAfter: Number(rawLast.scoreAfter ?? 0),
+          rank: typeof rawLast.rank === 'number' ? rawLast.rank : undefined,
+          totalParticipants:
+            typeof rawLast.totalParticipants === 'number'
+              ? rawLast.totalParticipants
+              : undefined,
         }
       : null;
 
@@ -524,6 +529,8 @@ export const firebaseBackend: Backend = {
             result: update.result,
             delta: update.delta,
             scoreAfter: update.scoreAfter,
+            rank: update.rankAfter,
+            totalParticipants: update.totalParticipants,
           } satisfies LastResult,
         });
 

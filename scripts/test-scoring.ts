@@ -234,6 +234,43 @@ console.log('\n=== 순위 계산 (채점 전 순위를 기록) ===');
   check('3위', byUid.low, 3);
 }
 
+console.log('\n=== 채점 후 순위를 교사가 미리 계산해 넣는다 ===');
+{
+  // 학생이 전체 참가자를 구독하지 않아도 순위를 알 수 있어야 한다.
+  const people = [
+    student('a', 500, { joinedAt: 1 }),
+    student('b', 500, { joinedAt: 2 }),
+    student('c', 500, { joinedAt: 3 }),
+  ];
+  const out = runRound(0, true, people, [
+    answer('a', 0, true, 200), // 정답 → 700
+    answer('b', 0, false, 100), // 오답 → 400
+    // c 는 미응답 → 500
+  ]);
+  const byUid = Object.fromEntries(out.updates.map((u) => [u.uid, u]));
+
+  check('a 점수', byUid.a.scoreAfter, 700);
+  check('c 점수', byUid.c.scoreAfter, 500);
+  check('b 점수', byUid.b.scoreAfter, 400);
+  check('a 순위 (1위)', byUid.a.rankAfter, 1);
+  check('c 순위 (2위)', byUid.c.rankAfter, 2);
+  check('b 순위 (3위)', byUid.b.rankAfter, 3);
+  check('전체 인원', byUid.a.totalParticipants, 3);
+}
+
+console.log('\n=== 점수가 같으면 공동 순위 ===');
+{
+  const people = [
+    student('first', 300, { joinedAt: 1 }),
+    student('second', 300, { joinedAt: 2 }),
+    student('low', 100, { joinedAt: 3 }),
+  ];
+  const out = runRound(0, true, people, []);
+  const byUid = Object.fromEntries(out.updates.map((u) => [u.uid, u.rankAfter]));
+  check('동점자 둘 다 1위', [byUid.first, byUid.second], [1, 1]);
+  check('그다음은 3위', byUid.low, 3);
+}
+
 console.log('\n=== 문제 은행 ===');
 {
   const ids = new Set(QUESTION_BANK.map((q) => q.id));

@@ -23,6 +23,10 @@ export interface ParticipantUpdate {
   /** 실제로 반영된 확신 포인트 (보유 점수를 넘으면 낮춰서 반영) */
   appliedConfidence: number;
   previousRank: number;
+  /** 채점이 끝난 뒤의 순위 */
+  rankAfter: number;
+  /** 이번 라운드 채점 대상 인원 */
+  totalParticipants: number;
   recoveryNeeded: boolean;
   recoveryRound: number | null;
   /** 이 학생이 제출한 답안이 있었는지 */
@@ -82,7 +86,7 @@ export function computeRoundScores(
     maxConfidenceCount: 0,
   };
 
-  const updates = participants.map((participant) => {
+  const draft = participants.map((participant) => {
     const answer = answersByUid.get(participant.uid);
     const isResting = participant.recoveryNeeded && participant.recoveryRound === roundIndex;
 
@@ -115,6 +119,7 @@ export function computeRoundScores(
 
     return {
       uid: participant.uid,
+      joinedAt: participant.joinedAt,
       scoreBefore: participant.score,
       scoreAfter,
       delta,
@@ -124,8 +129,29 @@ export function computeRoundScores(
       recoveryNeeded: needsRecovery,
       recoveryRound: needsRecovery ? roundIndex + 1 : null,
       hasAnswer: Boolean(answer),
-    } satisfies ParticipantUpdate;
+    };
   });
+
+  // 채점 후 순위를 미리 계산해 각 학생 문서에 함께 기록한다.
+  // 점수가 같으면 먼저 들어온 학생이 앞선다. (공동 순위)
+  const rankAfter = new Map<string, number>();
+  const sorted = [...draft].sort((a, b) =>
+    b.scoreAfter !== a.scoreAfter ? b.scoreAfter - a.scoreAfter : a.joinedAt - b.joinedAt,
+  );
+  let lastScore: number | null = null;
+  let lastRank = 0;
+  sorted.forEach((entry, index) => {
+    const rank = entry.scoreAfter === lastScore ? lastRank : index + 1;
+    lastScore = entry.scoreAfter;
+    lastRank = rank;
+    rankAfter.set(entry.uid, rank);
+  });
+
+  const updates: ParticipantUpdate[] = draft.map(({ joinedAt: _joinedAt, ...entry }) => ({
+    ...entry,
+    rankAfter: rankAfter.get(entry.uid) ?? 0,
+    totalParticipants: participants.length,
+  }));
 
   return { updates, stats };
 }

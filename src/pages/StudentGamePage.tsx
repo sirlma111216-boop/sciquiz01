@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button, LoadingScreen, Notice, Screen } from '../components/common/UI';
 import { StudentHeader } from '../components/student/StudentHeader';
@@ -14,7 +14,7 @@ import {
 import { backend } from '../services/backend';
 import { useStudentAuth } from '../hooks/useAuth';
 import { useClockOffset, useCountdown } from '../hooks/useCountdown';
-import { useMyAnswer, useMyParticipant, useParticipants, useRoom } from '../hooks/useRoom';
+import { useMyAnswer, useMyParticipant, useRoom } from '../hooks/useRoom';
 import { clearLastRoom, readLastRoom, saveLastRoom } from '../lib/session';
 
 export function StudentGamePage() {
@@ -27,8 +27,10 @@ export function StudentGamePage() {
     roomId || null,
     user?.uid ?? null,
   );
-  const { ranked } = useParticipants(roomId || null);
-
+  // 학생은 전체 참가자 목록을 구독하지 않는다.
+  // 순위는 교사가 채점할 때 계산해서 내 문서에 넣어 주기 때문이다.
+  // (예전에는 모든 학생이 서로의 문서를 구독해, 채점 순간 통신량이 몰려
+  //  교사 화면의 정답 공개가 학생 화면에 늦게 도착하는 문제가 있었다.)
   const currentRound = room?.currentRound ?? -1;
   const myAnswer = useMyAnswer(roomId || null, user?.uid ?? null, currentRound);
 
@@ -82,20 +84,17 @@ export function StudentGamePage() {
     if (selectedPoints > participant.score) setSelectedPoints(null);
   }, [participant, selectedPoints]);
 
-  const myRank = useMemo(() => {
-    if (!user) return null;
-    const found = ranked.find((entry) => entry.uid === user.uid);
-    return found ? found.rank : null;
-  }, [ranked, user]);
-
   const isResting = Boolean(
     participant?.recoveryNeeded && participant.recoveryRound === currentRound,
   );
 
   const handleSubmit = useCallback(async () => {
     if (!room || !user || selectedChoice === null || selectedPoints === null) return;
-    if (countdown.expired) {
-      setError('제한 시간이 끝났어요.');
+    // 제출 가능 여부는 기기 시계가 아니라 서버가 알려 준 진행 단계로 판단한다.
+    // 휴대전화 시계가 조금 어긋나 있어도 억울하게 미응답이 되지 않게 하기 위해서다.
+    // 진짜 마감은 Firestore 보안 규칙이 서버 시각으로 막는다.
+    if (room.phase !== 'question') {
+      setError('시간이 끝나 제출할 수 없어요.');
       return;
     }
 
@@ -111,15 +110,20 @@ export function StudentGamePage() {
         teacherUid: room.teacherUid,
       });
     } catch (cause: unknown) {
+      const code =
+        typeof cause === 'object' && cause !== null && 'code' in cause
+          ? String((cause as { code: unknown }).code)
+          : '';
+      // 서버가 마감 시간이 지났다고 판단하면 규칙에서 막힌다.
       setError(
-        cause instanceof Error && cause.message
-          ? cause.message
-          : '전송에 실패했어요. 다시 눌러 주세요.',
+        code === 'permission-denied'
+          ? '시간이 끝나 제출되지 않았어요.'
+          : '전송에 실패했어요. 다시 한 번 눌러 주세요.',
       );
     } finally {
       setSubmitting(false);
     }
-  }, [room, user, selectedChoice, selectedPoints, countdown.expired]);
+  }, [room, user, selectedChoice, selectedPoints]);
 
   /* ── 화면 ── */
 
@@ -178,9 +182,8 @@ export function StudentGamePage() {
           <RecoveryPanel score={participant.score} />
         ) : myAnswer ? (
           <SubmittedPanel choice={myAnswer.choice} confidencePoints={myAnswer.confidencePoints} />
-        ) : countdown.expired ? (
-          <TimeUpPanel submitted={false} />
         ) : (
+          // 화면에 0이 떠도 선생님 화면이 마감하기 전까지는 제출할 수 있게 둔다.
           <ChoicePanel
             remaining={countdown.remaining}
             duration={room.duration}
@@ -192,7 +195,7 @@ export function StudentGamePage() {
             onSelectPoints={setSelectedPoints}
             onSubmit={handleSubmit}
             submitting={submitting}
-            timeUp={countdown.expired}
+            timeUp={false}
             error={null}
           />
         ))}
@@ -201,14 +204,22 @@ export function StudentGamePage() {
         (isResting ? (
           <RecoveryPanel score={participant.score} />
         ) : myAnswer ? (
-          <SubmittedPanel choice={myAnswer.choice} confidencePoints={myAnswer.confidencePoints} />
+          <SubmittedPanel
+            choice={myAnswer.choice}
+            confidencePoints={myAnswer.confidencePoints}
+            scoring
+          />
         ) : (
           <TimeUpPanel submitted={false} />
         ))}
 
       {room.phase === 'reveal' &&
         (hasResultForThisRound && lastResult ? (
-          <ResultPanel result={lastResult} rank={myRank} totalStudents={ranked.length} />
+          <ResultPanel
+            result={lastResult}
+            rank={lastResult.rank ?? null}
+            totalStudents={lastResult.totalParticipants ?? 0}
+          />
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <p className="text-base font-semibold text-slate-400">결과를 기다리는 중...</p>
@@ -219,8 +230,8 @@ export function StudentGamePage() {
         <FinalPanel
           nickname={participant.nickname}
           score={participant.score}
-          rank={myRank}
-          totalStudents={ranked.length}
+          rank={lastResult?.rank ?? null}
+          totalStudents={lastResult?.totalParticipants ?? 0}
         />
       )}
     </Screen>
