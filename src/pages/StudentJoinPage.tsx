@@ -12,6 +12,7 @@ import {
 } from '../components/common/UI';
 import { backend, isMockMode } from '../services/backend';
 import { useStudentAuth } from '../hooks/useAuth';
+import { TeacherSessionNotice } from '../components/student/TeacherSessionNotice';
 import { sanitizeNickname, sanitizeRoomCode, validateNickname } from '../lib/utils';
 import { clearLastRoom, readLastRoom, saveLastRoom } from '../lib/session';
 
@@ -19,7 +20,13 @@ const NICKNAME_IDEAS = ['초코우유', '화성인', '감자박사', '과학천�
 
 export function StudentJoinPage() {
   const navigate = useNavigate();
-  const { user, loading, error: authError } = useStudentAuth();
+  const {
+    user,
+    loading,
+    error: authError,
+    teacherSignedIn,
+    continueAsStudent,
+  } = useStudentAuth();
 
   const [code, setCode] = useState('');
   const [nickname, setNickname] = useState('');
@@ -66,6 +73,17 @@ export function StudentJoinPage() {
   }, []);
 
   if (loading) return <LoadingScreen message="접속하는 중..." />;
+
+  // 교사 계정으로 로그인된 브라우저에서는 교사 세션을 함부로 끊지 않는다.
+  if (teacherSignedIn) {
+    return (
+      <TeacherSessionNotice
+        onContinueAsStudent={() => {
+          void continueAsStudent();
+        }}
+      />
+    );
+  }
 
   const handleJoin = async (event: FormEvent) => {
     event.preventDefault();

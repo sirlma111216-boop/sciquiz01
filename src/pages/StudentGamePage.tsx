@@ -13,6 +13,7 @@ import {
 } from '../components/student/StudentPanels';
 import { backend } from '../services/backend';
 import { useStudentAuth } from '../hooks/useAuth';
+import { TeacherSessionNotice } from '../components/student/TeacherSessionNotice';
 import { useClockOffset, useCountdown } from '../hooks/useCountdown';
 import { useMyAnswer, useMyParticipant, useRoom } from '../hooks/useRoom';
 import { clearLastRoom, readLastRoom, saveLastRoom } from '../lib/session';
@@ -21,7 +22,7 @@ export function StudentGamePage() {
   const { roomId = '' } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
 
-  const { user, loading: authLoading } = useStudentAuth();
+  const { user, loading: authLoading, teacherSignedIn, continueAsStudent } = useStudentAuth();
   const { room, loading: roomLoading } = useRoom(roomId || null);
   const { participant, loaded: participantLoaded } = useMyParticipant(
     roomId || null,
@@ -126,6 +127,16 @@ export function StudentGamePage() {
   }, [room, user, selectedChoice, selectedPoints]);
 
   /* ── 화면 ── */
+
+  if (teacherSignedIn) {
+    return (
+      <TeacherSessionNotice
+        onContinueAsStudent={() => {
+          void continueAsStudent();
+        }}
+      />
+    );
+  }
 
   if (authLoading || roomLoading) return <LoadingScreen message="게임에 연결하는 중..." />;
 
