@@ -11,6 +11,7 @@ import {
   inputClass,
 } from '../components/common/UI';
 import { backend, isMockMode } from '../services/backend';
+import { translateAuthError } from '../lib/authErrors';
 import { useAuth } from '../hooks/useAuth';
 
 export function TeacherLoginPage() {
@@ -100,27 +101,3 @@ export function TeacherLoginPage() {
   );
 }
 
-/** Firebase 오류 코드를 교사가 이해할 수 있는 문장으로 바꾼다. */
-export function translateAuthError(cause: unknown): string {
-  const code =
-    typeof cause === 'object' && cause !== null && 'code' in cause
-      ? String((cause as { code: unknown }).code)
-      : '';
-
-  switch (code) {
-    case 'auth/invalid-email':
-      return '이메일 형식이 올바르지 않습니다.';
-    case 'auth/user-not-found':
-    case 'auth/wrong-password':
-    case 'auth/invalid-credential':
-      return '이메일 또는 비밀번호가 올바르지 않습니다.';
-    case 'auth/too-many-requests':
-      return '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해 주세요.';
-    case 'auth/network-request-failed':
-      return '네트워크 연결을 확인해 주세요.';
-    case 'auth/operation-not-allowed':
-      return 'Firebase 콘솔에서 이메일/비밀번호 로그인을 켜 주세요.';
-    default:
-      return cause instanceof Error ? cause.message : '로그인에 실패했습니다.';
-  }
-}

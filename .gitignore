@@ -9,3 +9,6 @@ dist-ssr
 .firebase
 *.log
 *.tsbuildinfo
+
+# 로컬 개발 도구 설정
+.claude/

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { backend } from '../services/backend';
+import { translateStudentAuthError } from '../lib/authErrors';
 import type { AppUser } from '../types/game';
 
 export interface AuthState {
@@ -47,11 +48,7 @@ export function useStudentAuth(): AuthState & { error: string | null } {
         })
         .catch((cause: unknown) => {
           if (!active) return;
-          setError(
-            cause instanceof Error
-              ? cause.message
-              : '접속에 실패했어요. 잠시 후 다시 시도해 주세요.',
-          );
+          setError(translateStudentAuthError(cause));
           setState({ user: null, loading: false });
         });
     });

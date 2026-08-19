@@ -288,10 +288,50 @@ firebase deploy --only hosting
 
 ### 배포 — Cloudflare Pages
 
-- 빌드 명령: `npm run build`
-- 출력 디렉터리: `dist`
-- 환경 변수에 `VITE_FIREBASE_*` 값을 모두 등록합니다.
-- SPA 라우팅은 `public/_redirects` 파일이 처리합니다.
+**1) 프로젝트 연결**
+
+Cloudflare 대시보드 → **Workers & Pages** → **Create** → **Pages** →
+**Connect to Git** → 이 GitHub 저장소 선택
+
+**2) 빌드 설정**
+
+| 항목 | 값 |
+|---|---|
+| Framework preset | `Vite` (없으면 `None`) |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | (비워 둠) |
+
+**3) 환경 변수 등록** — 가장 많이 빠뜨리는 부분입니다
+
+같은 화면의 **Environment variables**에 `.env` 에 있는 값을 그대로 넣습니다.
+이 값이 없으면 배포된 사이트가 계속 연습 모드로 뜹니다.
+
+```
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+```
+
+**4) 배포 후 — Firebase에 도메인 등록** (이걸 안 하면 로그인이 안 됩니다)
+
+배포가 끝나면 `프로젝트이름.pages.dev` 주소가 나옵니다.
+Firebase 콘솔 → **Authentication → Settings → 승인된 도메인** →
+**도메인 추가**에 그 주소를 넣습니다. (`https://` 없이 도메인만)
+
+등록하지 않으면 학생 입장과 교사 로그인이 모두 `auth/unauthorized-domain` 으로 막힙니다.
+
+**5) 확인**
+
+배포 주소로 들어가 상단에 노란 "연습 모드" 안내가 **없으면** 정상입니다.
+안내가 보이면 3번 환경 변수를 다시 확인하세요.
+
+> SPA 라우팅(`/play`, `/teacher` 같은 주소 직접 접속)은 `public/_redirects` 가 처리하므로
+> 따로 설정할 것이 없습니다.
+> Node 버전은 `.nvmrc` 에 `20` 으로 지정되어 있습니다.
 
 ### 배포 — Netlify
 
