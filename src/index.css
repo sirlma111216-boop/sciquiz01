@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-ink-900 text-slate-100 antialiased;
+    /* 모바일에서 화면을 위아래로 잡아당길 때 생기는 흔들림을 줄인다. */
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 배경에 은은한 빛을 깔아 과학 퀴즈쇼 분위기를 만든다. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(60rem 40rem at 12% -10%, rgba(34, 211, 238, 0.16), transparent 60%),
+      radial-gradient(50rem 36rem at 92% 8%, rgba(139, 92, 246, 0.16), transparent 60%),
+      radial-gradient(45rem 30rem at 50% 110%, rgba(16, 185, 129, 0.12), transparent 60%);
+    pointer-events: none;
+  }
+
+  button {
+    touch-action: manipulation;
+  }
+
+  /* 키보드로 이동할 때 초점이 잘 보이도록 한다. */
+  :focus-visible {
+    outline: 3px solid theme('colors.beam.400');
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-sm;
+  }
+
+  .panel-strong {
+    @apply rounded-3xl border border-white/15 bg-ink-800/80 backdrop-blur;
+  }
+
+  /* 화면 크기에 따라 글자 크기가 자연스럽게 커지는 교사용 제목 */
+  .teacher-statement {
+    font-size: clamp(2rem, 5.2vw, 5rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+  }
+
+  .teacher-verdict {
+    font-size: clamp(3rem, 11vw, 9rem);
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
