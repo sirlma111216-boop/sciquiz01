@@ -85,7 +85,12 @@ export function useCountdown(
   }
 
   const serverNow = now + clockOffset;
-  const elapsed = (serverNow - startedAt) / 1000;
+  const rawElapsed = (serverNow - startedAt) / 1000;
+
+  // 기기 시계가 어긋나 있으면 지난 시간이 음수가 되거나 터무니없이 커질 수 있다.
+  // 그대로 두면 시작하자마자 0초로 보이거나 시간이 줄지 않는 것처럼 보인다.
+  // 화면에 보이는 값은 0 ~ 제한시간 사이로 묶어 둔다.
+  const elapsed = Math.min(Math.max(rawElapsed, 0), duration);
   const remainingExact = Math.max(0, duration - elapsed);
 
   return {

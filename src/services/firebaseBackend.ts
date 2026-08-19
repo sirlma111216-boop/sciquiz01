@@ -295,7 +295,10 @@ export const firebaseBackend: Backend = {
       (snapshot) => {
         callback(snapshot.exists() ? mapRoom(snapshot.id, snapshot.data()) : null);
       },
-      () => callback(null),
+      // 통신이 잠깐 끊겼다고 해서 마지막으로 받은 게임 상태를 지우지 않는다.
+      // 지워 버리면 학생 화면이 "게임방을 찾을 수 없어요"로 바뀌어 튕겨 나간다.
+      // Firestore SDK 가 알아서 다시 연결하면 다음 스냅샷이 도착한다.
+      (error) => console.error('[게임방 구독 오류]', error),
     );
   },
 
@@ -361,7 +364,8 @@ export const firebaseBackend: Backend = {
       (snapshot) => {
         callback(snapshot.exists() ? mapParticipant(snapshot.id, snapshot.data()) : null);
       },
-      () => callback(null),
+      // 마찬가지로 통신 오류 때문에 내 점수와 참가 정보를 지우지 않는다.
+      (error) => console.error('[참가 정보 구독 오류]', error),
     );
   },
 
