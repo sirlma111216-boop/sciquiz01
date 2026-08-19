@@ -17,6 +17,12 @@ import {
 } from '../hooks/useRoom';
 import type { Question } from '../types/game';
 
+/**
+ * 문제가 시작된 뒤 이 시간이 지나기 전에는 마감하지 않는다.
+ * 화면이 바뀌는 순간의 일시적인 상태 때문에 문제가 건너뛰어지는 것을 막는다.
+ */
+const MIN_QUESTION_SECONDS = 1.5;
+
 export function TeacherRoomPage() {
   const { roomId = '' } = useParams<{ roomId: string }>();
   const { user, loading: authLoading } = useAuth();
@@ -82,27 +88,49 @@ export function TeacherRoomPage() {
     [participants, currentRound],
   );
 
+  // 반드시 현재 문제의 답안만 센다.
+  // 다음 문제로 넘어간 직후에는 이전 문제의 답안이 잠깐 남아 있어서,
+  // 그대로 세면 새 문제가 시작하자마자 "전원 제출"로 오해해 바로 마감된다.
   const submittedCount = useMemo(() => {
-    const uids = new Set(answers.map((answer) => answer.uid));
+    const uids = new Set(
+      answers
+        .filter((answer) => answer.roundIndex === currentRound)
+        .map((answer) => answer.uid),
+    );
     return uids.size;
-  }, [answers]);
+  }, [answers, currentRound]);
 
   /* 제한 시간이 끝나면 답안을 마감한다. */
   useEffect(() => {
     if (!room || room.phase !== 'question') return;
     if (!countdown.expired || countdown.pending) return;
+    // 서버가 시작 시각을 확정하기 전에는 남은 시간을 믿지 않는다.
+    if (room.questionStartedAt === null) return;
     void backend.lockRound(room.id, room.currentRound).catch(() => {
       setError('답안 마감에 실패했습니다. 네트워크를 확인해 주세요.');
     });
   }, [countdown.expired, countdown.pending, room]);
 
+  /**
+   * 문제가 실제로 시작한 뒤 얼마나 지났는지(초).
+   * 서버가 questionStartedAt 을 아직 확정하지 않았으면 null 이다.
+   */
+  const elapsedSeconds =
+    room && room.questionStartedAt !== null && !countdown.pending
+      ? room.duration - countdown.remainingExact
+      : null;
+
   /* 모두 제출했으면 기다리지 않고 바로 마감한다. */
   useEffect(() => {
     if (!room || room.phase !== 'question') return;
+    // 문제가 제대로 시작되기 전에는 절대 마감하지 않는다.
+    // (서버 시작 시각이 확정되고 최소 1.5초가 지난 뒤에만 허용)
+    if (elapsedSeconds === null || elapsedSeconds < MIN_QUESTION_SECONDS) return;
+
     const expected = Math.max(0, participants.length - restingCount);
     if (expected === 0 || submittedCount < expected) return;
     void backend.lockRound(room.id, room.currentRound).catch(() => undefined);
-  }, [room, participants.length, restingCount, submittedCount]);
+  }, [room, participants.length, restingCount, submittedCount, elapsedSeconds]);
 
   /* 마감되면 점수를 계산하고 정답을 공개한다. (한 라운드에 정확히 한 번) */
   useEffect(() => {
@@ -164,7 +192,7 @@ export function TeacherRoomPage() {
   }, [room]);
 
   const handleNext = useCallback(async () => {
-    if (!room || !questions) return;
+    if (!room || !questions || advancing) return;
     setAdvancing(true);
     setError(null);
     try {
@@ -174,12 +202,25 @@ export function TeacherRoomPage() {
       } else {
         await backend.startRound(room.id, room.currentRound + 1);
       }
+      // 여기서 버튼을 바로 풀지 않는다.
+      // 다음 문제가 실제로 화면에 나타난 뒤에 아래 effect 가 풀어 준다.
     } catch {
       setError('다음 문제로 넘어가지 못했습니다.');
-    } finally {
       setAdvancing(false);
     }
-  }, [room, questions]);
+  }, [room, questions, advancing]);
+
+  /* 다음 문제가 실제로 시작되면 그때 버튼을 다시 쓸 수 있게 한다. */
+  useEffect(() => {
+    setAdvancing(false);
+  }, [room?.currentRound, room?.phase]);
+
+  /* 화면 전환이 오지 않는 경우를 대비한 안전장치 */
+  useEffect(() => {
+    if (!advancing) return;
+    const timer = window.setTimeout(() => setAdvancing(false), 6000);
+    return () => window.clearTimeout(timer);
+  }, [advancing]);
 
   const handleLockNow = useCallback(() => {
     if (!room) return;

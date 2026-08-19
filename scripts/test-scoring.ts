@@ -271,6 +271,36 @@ console.log('\n=== 점수가 같으면 공동 순위 ===');
   check('그다음은 3위', byUid.low, 3);
 }
 
+console.log('\n=== 다음 문제로 넘어갈 때 제출 인원을 잘못 세지 않는다 ===');
+{
+  // 교사 화면은 answers 목록을 구독한다.
+  // 다음 문제로 넘어간 직후에는 이전 문제의 답안이 잠깐 남아 있는데,
+  // 이때 라운드로 거르지 않으면 새 문제가 시작하자마자 마감되어 건너뛰어진다.
+  const countSubmitted = (list: AnswerDoc[], round: number) =>
+    new Set(list.filter((a) => a.roundIndex === round).map((a) => a.uid)).size;
+
+  const 이전문제답안 = [
+    answer('a', 3, true, 100),
+    answer('b', 3, false, 50),
+    answer('c', 3, true, 200),
+  ];
+
+  check('이전 문제(3번) 제출 인원', countSubmitted(이전문제답안, 3), 3);
+  check('새 문제(4번) 제출 인원은 0이어야 한다', countSubmitted(이전문제답안, 4), 0);
+
+  // 거르지 않으면 3명으로 세어 3명 전원 제출로 오해한다.
+  const 거르지않은수 = new Set(이전문제답안.map((a) => a.uid)).size;
+  assert(
+    '라운드로 거르지 않으면 오판이 발생한다 (버그 재현 확인)',
+    거르지않은수 === 3 && countSubmitted(이전문제답안, 4) === 0,
+    `(거르지 않으면 ${거르지않은수}명, 걸러내면 0명)`,
+  );
+
+  // 새 문제 답안이 들어오면 그때부터 센다.
+  const 새답안 = [...이전문제답안, answer('a', 4, true, 100)];
+  check('새 문제에 1명 제출', countSubmitted(새답안, 4), 1);
+}
+
 console.log('\n=== 문제 은행 ===');
 {
   const ids = new Set(QUESTION_BANK.map((q) => q.id));
