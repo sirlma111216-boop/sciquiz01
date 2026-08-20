@@ -15,6 +15,8 @@ import {
   useRoundAnswers,
   useRoundSummary,
 } from '../hooks/useRoom';
+import { SoundToggle } from '../components/teacher/SoundToggle';
+import { audio } from '../lib/audio';
 import type { Question } from '../types/game';
 
 /**
@@ -178,8 +180,39 @@ export function TeacherRoomPage() {
       .finally(() => setSaving(false));
   }, [room]);
 
+  /* ── 음악 ── */
+
+  // 매 순간의 진행률을 담아 둔다. (음악 효과를 매번 다시 시작하지 않기 위해)
+  const progressRef = useRef(0);
+  progressRef.current = countdown.progress;
+
+  useEffect(() => {
+    if (!room) return;
+    switch (room.phase) {
+      case 'waiting':
+        audio.startLobby();
+        break;
+      case 'question':
+        audio.startTimer(() => progressRef.current);
+        break;
+      case 'locked':
+        audio.playSuspense();
+        break;
+      case 'reveal':
+        audio.playReveal();
+        break;
+      case 'finished':
+        audio.playFinish();
+        break;
+    }
+  }, [room?.phase, room?.currentRound, room]);
+
+  // 화면을 벗어나면 소리를 멈춘다.
+  useEffect(() => () => audio.stop(), []);
+
   const handleStart = useCallback(async () => {
     if (!room) return;
+    audio.unlock(); // 브라우저는 사용자가 누른 뒤에야 소리를 허용한다
     setStarting(true);
     setError(null);
     try {
@@ -193,6 +226,7 @@ export function TeacherRoomPage() {
 
   const handleNext = useCallback(async () => {
     if (!room || !questions || advancing) return;
+    audio.unlock();
     setAdvancing(true);
     setError(null);
     try {
@@ -283,11 +317,14 @@ export function TeacherRoomPage() {
           {room.className} · 코드 <span className="text-beam-400">{room.code}</span> ·{' '}
           {participants.length}명
         </span>
-        {room.phase === 'waiting' && (
-          <Link to="/teacher" className="shrink-0 hover:text-slate-300">
-            나가기
-          </Link>
-        )}
+        <span className="flex shrink-0 items-center gap-3">
+          <SoundToggle />
+          {room.phase === 'waiting' && (
+            <Link to="/teacher" className="hover:text-slate-300">
+              나가기
+            </Link>
+          )}
+        </span>
       </div>
 
       {error && <Notice tone="warn">{error}</Notice>}

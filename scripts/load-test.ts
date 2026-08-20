@@ -29,13 +29,18 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
   doc,
   getDoc,
-  getFirestore,
+  initializeFirestore,
   onSnapshot,
   runTransaction,
   serverTimestamp,
   setDoc,
   Timestamp,
 } from 'firebase/firestore';
+
+// 한 학생이 실패해도 테스트 전체가 멈추지 않게 한다.
+process.on('unhandledRejection', (reason) => {
+  console.error('  (처리되지 않은 오류)', reason);
+});
 
 /* ───────────────── 설정 읽기 ───────────────── */
 
@@ -111,7 +116,7 @@ interface Student {
   index: number;
   nickname: string;
   uid: string;
-  db: ReturnType<typeof getFirestore>;
+  db: ReturnType<typeof initializeFirestore>;
   score: number;
   recoveryRound: number | null;
   recoveryNeeded: boolean;
@@ -135,7 +140,12 @@ async function createStudent(index: number): Promise<Student | null> {
     // 학생마다 독립된 앱 인스턴스를 써서 로그인 상태를 분리한다.
     const app = initializeApp(firebaseConfig, `student-${index}`);
     const auth = getAuth(app);
-    const db = getFirestore(app);
+    // Node 에서는 gRPC 스트림이 자주 끊긴다. 롱폴링으로 붙어야 안정적이다.
+    // (브라우저는 WebChannel 을 쓰므로 이 설정과 무관하다.)
+    const db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+      ignoreUndefinedProperties: true,
+    });
     const credential = await signInAnonymously(auth);
 
     return {
@@ -175,9 +185,22 @@ async function main() {
   console.log(`      성공 ${students.length}명 / 실패 ${studentCount - students.length}명\n`);
   if (students.length === 0) process.exit(1);
 
-  // 게임방 찾기
+  // 게임방 찾기 (연결이 자리 잡을 때까지 몇 번 다시 시도한다)
   const lookupDb = students[0].db;
-  const codeSnap = await getDoc(doc(lookupDb, 'roomCodes', roomCode));
+  let codeSnap;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      codeSnap = await getDoc(doc(lookupDb, 'roomCodes', roomCode));
+      break;
+    } catch (cause) {
+      console.log(`      Firestore 연결 재시도 ${attempt}/5 (${errorCode(cause)})`);
+      await sleep(1500);
+    }
+  }
+  if (!codeSnap) {
+    console.error('Firestore 에 연결하지 못했습니다. 네트워크를 확인해 주세요.');
+    process.exit(1);
+  }
   if (!codeSnap.exists()) {
     console.error(`게임 코드 ${roomCode} 를 찾을 수 없습니다. 교사 화면의 코드를 확인해 주세요.`);
     process.exit(1);

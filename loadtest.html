@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>동시 접속 부하 테스트</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #0b1020; color: #e2e8f0;
+             font-family: system-ui, 'Malgun Gothic', sans-serif; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      .hint { font-size: 13px; color: #94a3b8; margin-bottom: 12px; }
+      #status { padding: 10px 14px; border-radius: 10px; background: #16234a;
+                border: 1px solid #2c3c78; font-weight: 700; margin-bottom: 12px; }
+      pre { background: #060a16; border: 1px solid #1e293b; border-radius: 10px;
+            padding: 14px; font-size: 13px; line-height: 1.6; white-space: pre-wrap;
+            max-height: 70vh; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>동시 접속 부하 테스트</h1>
+    <p class="hint">
+      개발용 도구입니다. 주소 예: <code>/loadtest.html?code=5583&amp;n=20</code>
+    </p>
+    <div id="status">준비 중...</div>
+    <pre id="log"></pre>
+    <script type="module" src="/src/loadtest/main.ts"></script>
+  </body>
+</html>
